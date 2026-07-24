@@ -21,7 +21,6 @@ def ensure_model_exists():
     if found_path:
         return found_path
 
-    # Synthetic fallback model training
     np.random.seed(42)
     X_train = np.random.rand(100, 12)
     X_train[:, 2] = np.random.choice([4, 8, 16, 32], 100)
@@ -92,75 +91,107 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    /* Dark Theme Background */
+    /* 1. Global Dark Background */
     .stApp {
-        background: #0b1120 !important;
+        background-color: #0f172a !important;
         color: #f8fafc !important;
-        font-family: 'Inter', system-ui, sans-serif !important;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
     }
 
-    /* Fixed High-Contrast Input Field Labels */
-    label, p, .stMarkdown label, .stSlider label {
-        color: #ffffff !important;
+    /* 2. All Labels (Headers above inputs) */
+    label, p, .stMarkdown label, div[data-testid="stWidgetLabel"] p {
+        color: #f1f5f9 !important;
         font-size: 1.05rem !important;
         font-weight: 700 !important;
         margin-bottom: 6px !important;
-        letter-spacing: 0.3px !important;
-        text-shadow: 0px 1px 3px rgba(0,0,0,0.8);
     }
 
-    /* Target all Streamlit widget labels specifically */
-    div[data-widget-label="true"], div[data-testid="stWidgetLabel"] p {
-        color: #f8fafc !important;
-        font-weight: 700 !important;
-        font-size: 1rem !important;
+    /* 3. Input Containers & Dropdown Boxes (Unfocused/Selected state) */
+    div[data-baseweb="select"] > div, 
+    div[data-baseweb="base-input"] {
+        background-color: #1e293b !important;
+        border: 1.5px solid #3b82f6 !important;
+        border-radius: 10px !important;
+        color: #ffffff !important;
     }
 
-    /* Input Controls Styling */
-    .stSelectbox > div > div, .stNumberInput > div > div > input {
+    /* 4. Text INSIDE Select Boxes / Inputs */
+    div[data-baseweb="select"] span, 
+    div[data-baseweb="select"] div,
+    input[type="number"] {
+        color: #ffffff !important;
+        font-weight: 600 !important;
+        font-size: 1.05rem !important;
+    }
+
+    /* 5. Dropdown Popup Menu List */
+    ul[data-baseweb="menu"] {
+        background-color: #1e293b !important;
+        border: 1px solid #3b82f6 !important;
+        border-radius: 10px !important;
+    }
+
+    /* Individual items in dropdown list */
+    li[data-baseweb="option"] {
         background-color: #1e293b !important;
         color: #ffffff !important;
-        border: 1px solid #3b82f6 !important;
-        border-radius: 8px !important;
-        font-size: 1rem !important;
         font-weight: 600 !important;
+    }
+
+    /* Hover & Active item in dropdown list */
+    li[data-baseweb="option"]:hover,
+    li[data-baseweb="option"][aria-selected="true"] {
+        background-color: #2563eb !important;
+        color: #ffffff !important;
+    }
+
+    /* Number Input (+ / - buttons) */
+    button[title="Increase value"], button[title="Decrease value"] {
+        background-color: #334155 !important;
+        color: #ffffff !important;
+        border-radius: 6px !important;
+    }
+
+    /* Slider styling */
+    div[data-baseweb="slider"] div {
+        color: #3b82f6 !important;
     }
 
     /* Hero Banner Header */
     .hero-banner {
-        background: linear-gradient(135deg, #2563eb 0%, #4f46e5 50%, #7c3aed 100%);
+        background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #3b82f6 100%);
         border-radius: 16px;
         padding: 32px 20px;
         text-align: center;
         margin-bottom: 28px;
-        box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.4);
-        border: 1px solid rgba(255, 255, 255, 0.15);
+        box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .hero-banner h1 {
         color: #ffffff !important;
-        font-size: 2.6rem !important;
+        font-size: 2.5rem !important;
         font-weight: 800 !important;
         margin: 0 !important;
     }
 
     .hero-banner p {
-        color: #e2e8f0 !important;
-        font-size: 1.15rem !important;
+        color: #93c5fd !important;
+        font-size: 1.1rem !important;
         margin-top: 8px !important;
     }
 
-    /* Input Glassmorphism Card Container */
+    /* Input Glassmorphism Section */
     .input-card {
-        background: #111827;
-        border: 1px solid #1e293b;
+        background: #1e293b;
+        border: 1px solid #334155;
         border-radius: 16px;
         padding: 28px;
         margin-bottom: 24px;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
     }
 
-    /* Custom Result Card Output */
+    /* Custom Prediction Result Card */
     .result-card {
         background: linear-gradient(135deg, #059669 0%, #10b981 100%);
         padding: 28px;
@@ -172,7 +203,7 @@ st.markdown("""
 
     .result-card .title {
         color: #d1fae5;
-        font-size: 1.1rem;
+        font-size: 1.05rem;
         text-transform: uppercase;
         letter-spacing: 1.5px;
         font-weight: 700;
@@ -185,11 +216,11 @@ st.markdown("""
         margin-top: 6px;
     }
 
-    /* Primary CTA Predict Button */
+    /* Submit Button Styling */
     .stButton > button {
-        background: linear-gradient(90deg, #2563eb 0%, #4f46e5 100%) !important;
+        background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%) !important;
         color: #ffffff !important;
-        font-size: 1.25rem !important;
+        font-size: 1.2rem !important;
         font-weight: 700 !important;
         padding: 16px 28px !important;
         border-radius: 12px !important;
@@ -199,30 +230,30 @@ st.markdown("""
     }
 
     .stButton > button:hover {
-        background: linear-gradient(90deg, #1d4ed8 0%, #4338ca 100%) !important;
+        background: linear-gradient(90deg, #1d4ed8 0%, #1e40af 100%) !important;
         transform: translateY(-2px) !important;
         box-shadow: 0 8px 25px rgba(37, 99, 235, 0.6) !important;
     }
 
-    /* Footer Styling */
+    /* Footer */
     .footer {
         margin-top: 40px;
         padding: 20px;
         text-align: center;
-        color: #94a3b8;
+        color: #64748b;
         font-size: 0.95rem;
-        border-top: 1px solid #1e293b;
+        border-top: 1px solid #334155;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# MAIN APPLICATION ROUTINE
+# MAIN APPLICATION
 # ==========================================
 def main():
     # Sidebar
     with st.sidebar:
-        st.image("https://cdn-icons-png.flaticon.com/512/428/428001.png", width=85)
+        st.image("https://cdn-icons-png.flaticon.com/512/428/428001.png", width=80)
         st.title("Control Panel")
         st.markdown("---")
 
@@ -236,25 +267,25 @@ def main():
         * **RAM & Storage**: Memory (GB) and drive capacity
         * **Display**: Screen size, resolution, and touchscreen
         * **CPU & GPU**: Processor performance level
-        * **OS & Weight**: OS software & device portability
+        * **OS & Weight**: Operating system & device weight
         """)
 
         st.markdown("---")
         if st.button("🔄 Reset Inputs", use_container_width=True):
             st.rerun()
 
-    # Hero Banner
+    # Hero Banner Header
     st.markdown("""
     <div class="hero-banner">
         <h1>💻 Laptop Price Predictor</h1>
-        <p>Configure hardware specifications below to receive an instant machine learning price estimate.</p>
+        <p>Configure hardware specifications below to calculate market valuation.</p>
     </div>
     """, unsafe_allow_html=True)
 
     # Input Form Layout Card
     st.markdown('<div class="input-card">', unsafe_allow_html=True)
     st.markdown("### 🛠️ Hardware Specifications")
-    st.write("Customize components to calculate current market valuation.")
+    st.write("Customize components to run estimation model.")
     st.markdown("<br>", unsafe_allow_html=True)
 
     # Row 1: Brand, Type, Screen Size
@@ -306,7 +337,7 @@ def main():
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Predict Button
+    # Calculate Button
     if st.button("🚀 Calculate Estimated Price", use_container_width=True):
         company_map = {"Apple": 0, "Dell": 1, "HP": 2, "Lenovo": 3, "Asus": 4, "Acer": 5, "MSI": 6, "Toshiba": 7, "Other": 8}
         type_map = {"Notebook": 0, "Gaming": 1, "Ultrabook": 2, "2 in 1 Convertible": 3, "Workstation": 4, "Netbook": 5}
@@ -338,7 +369,6 @@ def main():
 
             st.balloons()
 
-            # Result Banner Output
             st.markdown(f"""
             <div class="result-card">
                 <div class="title">Estimated Market Price</div>
@@ -346,7 +376,6 @@ def main():
             </div>
             """, unsafe_allow_html=True)
 
-            # Key Metrics Cards
             m1, m2, m3, m4 = st.columns(4)
             m1.metric("Storage Total", f"{ssd + hdd} GB")
             m2.metric("Portability Tier", "Ultraportable" if weight < 1.5 else ("Standard" if weight <= 2.5 else "Desktop Replacement"))
@@ -355,7 +384,6 @@ def main():
 
             st.markdown("---")
 
-            # Analytical Visualizations
             c1, c2 = st.columns([1, 1], gap="large")
 
             with c1:
@@ -366,11 +394,11 @@ def main():
                     number={'prefix': "$", 'valueformat': ",.0f"},
                     gauge={
                         'axis': {'range': [200, 3500]},
-                        'bar': {'color': "#3b82f6"},
+                        'bar': {'color': "#2563eb"},
                         'steps': [
-                            {'range': [200, 800], 'color': '#1e293b'},
-                            {'range': [800, 1800], 'color': '#334155'},
-                            {'range': [1800, 3500], 'color': '#475569'}
+                            {'range': [200, 800], 'color': '#0f172a'},
+                            {'range': [800, 1800], 'color': '#1e293b'},
+                            {'range': [1800, 3500], 'color': '#334155'}
                         ]
                     }
                 ))
