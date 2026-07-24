@@ -15,25 +15,17 @@ from sklearn.ensemble import RandomForestRegressor
 MODEL_FILE = "laptop_price_model.pkl"
 
 def ensure_model_exists():
-    """
-    Checks if a model pickle file exists. If missing, it automatically 
-    trains a fallback Random Forest model so the app runs without error.
-    """
     possible_paths = [MODEL_FILE, "model.pkl", "laptop_model.pkl"]
     found_path = next((p for p in possible_paths if os.path.exists(p)), None)
 
     if found_path:
         return found_path
 
-    # Auto-generate fallback model
+    # Synthetic fallback model training
     np.random.seed(42)
-    # Synthetic feature matrix matching: 
-    # [Company, TypeName, Ram, Weight, Touchscreen, Ips, Inches, Cpu, HDD, SSD, Gpu, OpSys]
     X_train = np.random.rand(100, 12)
-    X_train[:, 2] = np.random.choice([4, 8, 16, 32], 100)  # RAM
-    X_train[:, 9] = np.random.choice([0, 128, 256, 512, 1024], 100)  # SSD
-    
-    # Simple linear heuristic for synthetic targets
+    X_train[:, 2] = np.random.choice([4, 8, 16, 32], 100)
+    X_train[:, 9] = np.random.choice([0, 128, 256, 512, 1024], 100)
     y_train = (X_train[:, 2] * 45) + (X_train[:, 9] * 1.2) + np.random.normal(300, 50, 100)
 
     model = RandomForestRegressor(n_estimators=50, random_state=42)
@@ -44,7 +36,6 @@ def ensure_model_exists():
         
     return MODEL_FILE
 
-# Ensure model exists before initializing Flask/Streamlit
 ACTIVE_MODEL_PATH = ensure_model_exists()
 
 def load_pickle_model():
@@ -54,9 +45,7 @@ def load_pickle_model():
     except Exception:
         return None
 
-# Global model instance for Flask API
 global_model = load_pickle_model()
-
 
 # ==========================================
 # FLASK REST API BACKEND
@@ -66,55 +55,33 @@ flask_app = Flask(__name__)
 @flask_app.route("/predict", methods=["POST"])
 def api_predict():
     if global_model is None:
-        return jsonify({
-            "status": "error",
-            "error": "Model initialization failed."
-        }), 500
+        return jsonify({"status": "error", "error": "Model initialization failed."}), 500
 
     try:
         data = request.get_json()
-        
-        # Build feature vector matching model training format
         features = [
-            data.get("Company", 0),
-            data.get("TypeName", 0),
-            data.get("Ram", 8),
-            data.get("Weight", 1.8),
-            data.get("Touchscreen", 0),
-            data.get("Ips", 1),
-            data.get("Inches", 15.6),
-            data.get("Cpu", 0),
-            data.get("HDD", 0),
-            data.get("SSD", 256),
-            data.get("Gpu", 0),
-            data.get("OpSys", 0)
+            data.get("Company", 0), data.get("TypeName", 0), data.get("Ram", 8),
+            data.get("Weight", 1.8), data.get("Touchscreen", 0), data.get("Ips", 1),
+            data.get("Inches", 15.6), data.get("Cpu", 0), data.get("HDD", 0),
+            data.get("SSD", 256), data.get("Gpu", 0), data.get("OpSys", 0)
         ]
-
         input_array = np.array(features).reshape(1, -1)
         raw_pred = global_model.predict(input_array)[0]
-        
-        # Handle inverse log transformations if used during training
         predicted_price = float(np.exp(raw_pred) if raw_pred < 15 else raw_pred)
 
-        return jsonify({
-            "status": "success",
-            "prediction_usd": round(max(200.0, predicted_price), 2)
-        })
-
+        return jsonify({"status": "success", "prediction_usd": round(max(200.0, predicted_price), 2)})
     except Exception as e:
         return jsonify({"status": "error", "error": str(e)}), 400
 
 def run_flask():
     flask_app.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False)
 
-# Run Flask backend thread alongside Streamlit
 if not any(thread.name == "FlaskServer" for thread in threading.enumerate()):
     flask_thread = threading.Thread(target=run_flask, name="FlaskServer", daemon=True)
     flask_thread.start()
 
-
 # ==========================================
-# STREAMLIT UI CONFIGURATION & STYLING
+# STREAMLIT UI CONFIGURATION & HIGH-CONTRAST STYLING
 # ==========================================
 st.set_page_config(
     page_title="Laptop Price Predictor",
@@ -125,44 +92,75 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    /* Dark Glassmorphism Styling */
+    /* Dark Theme Background */
     .stApp {
-        background: linear-gradient(135deg, #090d16 0%, #0f172a 50%, #170e2b 100%);
-        color: #f8fafc;
-        font-family: 'Inter', system-ui, sans-serif;
+        background: #0b1120 !important;
+        color: #f8fafc !important;
+        font-family: 'Inter', system-ui, sans-serif !important;
     }
 
+    /* Fixed High-Contrast Input Field Labels */
+    label, p, .stMarkdown label, .stSlider label {
+        color: #ffffff !important;
+        font-size: 1.05rem !important;
+        font-weight: 700 !important;
+        margin-bottom: 6px !important;
+        letter-spacing: 0.3px !important;
+        text-shadow: 0px 1px 3px rgba(0,0,0,0.8);
+    }
+
+    /* Target all Streamlit widget labels specifically */
+    div[data-widget-label="true"], div[data-testid="stWidgetLabel"] p {
+        color: #f8fafc !important;
+        font-weight: 700 !important;
+        font-size: 1rem !important;
+    }
+
+    /* Input Controls Styling */
+    .stSelectbox > div > div, .stNumberInput > div > div > input {
+        background-color: #1e293b !important;
+        color: #ffffff !important;
+        border: 1px solid #3b82f6 !important;
+        border-radius: 8px !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+    }
+
+    /* Hero Banner Header */
     .hero-banner {
-        background: linear-gradient(90deg, #4f46e5 0%, #6366f1 50%, #ec4899 100%);
+        background: linear-gradient(135deg, #2563eb 0%, #4f46e5 50%, #7c3aed 100%);
         border-radius: 16px;
         padding: 32px 20px;
         text-align: center;
         margin-bottom: 28px;
-        box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.4);
+        box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.15);
     }
 
     .hero-banner h1 {
         color: #ffffff !important;
-        font-size: 2.5rem;
-        font-weight: 800;
-        margin: 0;
+        font-size: 2.6rem !important;
+        font-weight: 800 !important;
+        margin: 0 !important;
     }
 
     .hero-banner p {
-        color: #e2e8f0;
-        font-size: 1.1rem;
-        margin-top: 8px;
+        color: #e2e8f0 !important;
+        font-size: 1.15rem !important;
+        margin-top: 8px !important;
     }
 
+    /* Input Glassmorphism Card Container */
     .input-card {
-        background: rgba(15, 23, 42, 0.65);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: #111827;
+        border: 1px solid #1e293b;
         border-radius: 16px;
         padding: 28px;
         margin-bottom: 24px;
-        backdrop-filter: blur(12px);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
     }
 
+    /* Custom Result Card Output */
     .result-card {
         background: linear-gradient(135deg, #059669 0%, #10b981 100%);
         padding: 28px;
@@ -174,7 +172,7 @@ st.markdown("""
 
     .result-card .title {
         color: #d1fae5;
-        font-size: 1rem;
+        font-size: 1.1rem;
         text-transform: uppercase;
         letter-spacing: 1.5px;
         font-weight: 700;
@@ -182,39 +180,41 @@ st.markdown("""
 
     .result-card .value {
         color: #ffffff;
-        font-size: 3rem;
+        font-size: 3.2rem;
         font-weight: 800;
         margin-top: 6px;
     }
 
+    /* Primary CTA Predict Button */
     .stButton > button {
-        background: linear-gradient(90deg, #6366f1 0%, #4f46e5 100%);
-        color: #ffffff;
-        font-size: 1.15rem;
-        font-weight: 700;
-        padding: 14px 28px;
-        border-radius: 12px;
-        border: none;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        background: linear-gradient(90deg, #2563eb 0%, #4f46e5 100%) !important;
+        color: #ffffff !important;
+        font-size: 1.25rem !important;
+        font-weight: 700 !important;
+        padding: 16px 28px !important;
+        border-radius: 12px !important;
+        border: none !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4) !important;
     }
 
     .stButton > button:hover {
-        background: linear-gradient(90deg, #4f46e5 0%, #3730a3 100%);
-        transform: translateY(-2px);
+        background: linear-gradient(90deg, #1d4ed8 0%, #4338ca 100%) !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 8px 25px rgba(37, 99, 235, 0.6) !important;
     }
 
+    /* Footer Styling */
     .footer {
         margin-top: 40px;
         padding: 20px;
         text-align: center;
-        color: #64748b;
-        font-size: 0.9rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        color: #94a3b8;
+        font-size: 0.95rem;
+        border-top: 1px solid #1e293b;
     }
 </style>
 """, unsafe_allow_html=True)
-
 
 # ==========================================
 # MAIN APPLICATION ROUTINE
@@ -228,33 +228,33 @@ def main():
 
         st.subheader("⚙️ System Status")
         st.success("Model Status: Online")
-        st.info("API active at `http://localhost:5000/predict`")
+        st.info("API Endpoint active at `http://localhost:5000/predict`")
 
-        st.subheader("📌 Key Hardware Features")
+        st.subheader("📌 Input Feature Guide")
         st.markdown("""
-        * **Brand & Type**: Manufacturer & form factor
-        * **RAM & Storage**: Memory and drive capacity (SSD/HDD)
-        * **Display**: Screen size, resolution, & touch capability
-        * **CPU & GPU**: Processing and graphics power
-        * **OS & Weight**: Operating system and portability
+        * **Brand & Type**: Form factor & manufacturer
+        * **RAM & Storage**: Memory (GB) and drive capacity
+        * **Display**: Screen size, resolution, and touchscreen
+        * **CPU & GPU**: Processor performance level
+        * **OS & Weight**: OS software & device portability
         """)
 
         st.markdown("---")
         if st.button("🔄 Reset Inputs", use_container_width=True):
             st.rerun()
 
-    # Hero Header Banner
+    # Hero Banner
     st.markdown("""
     <div class="hero-banner">
         <h1>💻 Laptop Price Predictor</h1>
-        <p>Configure hardware specifications below to receive an instant market price estimate.</p>
+        <p>Configure hardware specifications below to receive an instant machine learning price estimate.</p>
     </div>
     """, unsafe_allow_html=True)
 
-    # Input Form Layout
+    # Input Form Layout Card
     st.markdown('<div class="input-card">', unsafe_allow_html=True)
-    st.subheader("🛠 Hardware Specifications")
-    st.write("Customize components to estimate the laptop market valuation.")
+    st.markdown("### 🛠️ Hardware Specifications")
+    st.write("Customize components to calculate current market valuation.")
     st.markdown("<br>", unsafe_allow_html=True)
 
     # Row 1: Brand, Type, Screen Size
@@ -271,7 +271,7 @@ def main():
     # Row 2: RAM, SSD, HDD
     r2_col1, r2_col2, r2_col3 = st.columns(3, gap="large")
     with r2_col1:
-        ram = st.selectbox("🧠 RAM Capacity", [2, 4, 6, 8, 12, 16, 24, 32, 64], index=3)
+        ram = st.selectbox("🧠 RAM Capacity (GB)", [2, 4, 6, 8, 12, 16, 24, 32, 64], index=3)
     with r2_col2:
         ssd = st.selectbox("⚡ SSD Storage (GB)", [0, 128, 256, 512, 1024, 2048], index=2)
     with r2_col3:
@@ -290,7 +290,7 @@ def main():
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Row 4: Display Features & Weight
+    # Row 4: Display Options & Weight
     r4_col1, r4_col2, r4_col3 = st.columns(3, gap="large")
     with r4_col1:
         touchscreen = st.selectbox("👆 Touchscreen", ["No", "Yes"], index=0)
@@ -301,13 +301,12 @@ def main():
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # Input Validation Warnings
     if ram >= 32 and (ssd + hdd) == 0:
-        st.warning("⚠️ High-performance RAM selected without any local storage. Please check your inputs.")
+        st.warning("⚠️ High performance RAM selected without local storage. Verify your selections.")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Execution Action Button
+    # Predict Button
     if st.button("🚀 Calculate Estimated Price", use_container_width=True):
         company_map = {"Apple": 0, "Dell": 1, "HP": 2, "Lenovo": 3, "Asus": 4, "Acer": 5, "MSI": 6, "Toshiba": 7, "Other": 8}
         type_map = {"Notebook": 0, "Gaming": 1, "Ultrabook": 2, "2 in 1 Convertible": 3, "Workstation": 4, "Netbook": 5}
@@ -315,7 +314,6 @@ def main():
         gpu_map = {"Intel": 0, "Nvidia": 1, "AMD": 2}
         os_map = {"Windows": 0, "Mac": 1, "Linux / Others": 2}
 
-        # Build feature dataframe
         input_data = pd.DataFrame([{
             'Company': company_map.get(company, 8),
             'TypeName': type_map.get(type_name, 0),
@@ -340,7 +338,7 @@ def main():
 
             st.balloons()
 
-            # Output Banner
+            # Result Banner Output
             st.markdown(f"""
             <div class="result-card">
                 <div class="title">Estimated Market Price</div>
@@ -348,16 +346,16 @@ def main():
             </div>
             """, unsafe_allow_html=True)
 
-            # Metric Cards
+            # Key Metrics Cards
             m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Storage Capacity", f"{ssd + hdd} GB")
-            m2.metric("Portability Rating", "Ultraportable" if weight < 1.5 else ("Standard" if weight <= 2.5 else "Heavy Desktop Replacement"))
+            m1.metric("Storage Total", f"{ssd + hdd} GB")
+            m2.metric("Portability Tier", "Ultraportable" if weight < 1.5 else ("Standard" if weight <= 2.5 else "Desktop Replacement"))
             m3.metric("RAM Capacity", f"{ram} GB")
             m4.metric("Selected Brand", company)
 
             st.markdown("---")
 
-            # Analytical Charts
+            # Analytical Visualizations
             c1, c2 = st.columns([1, 1], gap="large")
 
             with c1:
@@ -368,7 +366,7 @@ def main():
                     number={'prefix': "$", 'valueformat': ",.0f"},
                     gauge={
                         'axis': {'range': [200, 3500]},
-                        'bar': {'color': "#6366f1"},
+                        'bar': {'color': "#3b82f6"},
                         'steps': [
                             {'range': [200, 800], 'color': '#1e293b'},
                             {'range': [800, 1800], 'color': '#334155'},
@@ -385,19 +383,19 @@ def main():
                 st.plotly_chart(fig_gauge, use_container_width=True)
 
             with c2:
-                st.subheader("📈 RAM Upgrade Price Scaling")
+                st.subheader("📈 RAM Upgrade Price Impact")
                 ram_tiers = np.array([4, 8, 16, 32, 64])
                 scaling_factor = predicted_price / max(1, ram)
                 estimated_prices = [predicted_price + (r - ram) * (scaling_factor * 0.25) for r in ram_tiers]
 
                 trend_df = pd.DataFrame({
-                    'RAM (GB)': [f"{r}GB" for r in ram_tiers],
+                    'RAM Capacity': [f"{r} GB" for r in ram_tiers],
                     'Price ($)': [max(150, p) for p in estimated_prices]
                 })
 
                 fig_trend = px.bar(
                     trend_df,
-                    x='RAM (GB)',
+                    x='RAM Capacity',
                     y='Price ($)',
                     template="plotly_dark",
                     color_discrete_sequence=['#10b981']
@@ -413,13 +411,11 @@ def main():
         except Exception as e:
             st.error(f"Prediction Error: {str(e)}")
 
-    # Footer
     st.markdown("""
     <div class="footer">
-        Laptop Price Predictor • Powered by Streamlit, Scikit-Learn & Flask
+        Laptop Price Predictor • Enterprise ML System
     </div>
     """, unsafe_allow_html=True)
-
 
 if __name__ == "__main__":
     main()
